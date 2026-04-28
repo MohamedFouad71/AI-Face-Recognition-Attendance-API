@@ -1,0 +1,13 @@
+# Directories
+dist/
+node_modules/
+coverage/
+
+# Files
+.env
+.env.*
+!.env.example
+.DS_Store
+.vscode/*
+!extensions.json
+!settings.json
