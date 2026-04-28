@@ -1,6 +1,4 @@
-# API
-
-Express API server for the AI Face Recognition Attendance system.
+# Express API server for the AI Face Recognition Attendance system.
 
 ---
 
@@ -14,29 +12,12 @@ Express API server for the AI Face Recognition Attendance system.
 
 ## Getting Started
 
-### 1. Install dependencies
-
 ```bash
+# 1) install dependencies
 npm install
-```
-
-### 2. Set up environment variables
-
-Copy the example file and adjust the values if needed:
-
-```bash
+# 2) rename .env.example to .env
 cp .env.example .env
-```
-
-The default `.env` only needs one variable:
-
-| Variable | Default | Description             |
-| -------- | ------- | ----------------------- |
-| `PORT`   | `3000`  | Port the server runs on |
-
-### 3. Run the server (development)
-
-```bash
+# 3) run the server in development mode
 npm run dev
 ```
 
@@ -80,3 +61,11 @@ Api/
 ```
 
 ---
+
+## Contribution
+
+- This repo automatically runs tests before each commit to keep the repository clean, if you faced any problem after
+  using the command `git commit`, Do not panic, just use `npm run format` and `npm run lint:fix`, you may also check type
+  errors in you code.
+
+- if there you have faced any problem, please feel free to contact me at mohamed.fouad.softwareengineer@gmail.com
