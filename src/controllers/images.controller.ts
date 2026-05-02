@@ -1,10 +1,9 @@
-import axios from 'axios';
 import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
-import FormData from 'form-data';
 
 import redisClient from '#config/redis.js';
 import FaceDetectionResponse from '#types/api.js';
+import getFaceEncoding from '#utils/getFaceEncodong.js';
 
 export default class ImageController {
   public getFaceEncoding = asyncHandler(async (req: Request, res: Response): Promise<any> => {
@@ -13,29 +12,23 @@ export default class ImageController {
     if (!imageBuffer)
       return res.status(400).json({ error: 'image is not provided', success: false });
 
-    if (!process.env.AI_EXTRACT_FACE_URL) {
-      console.error('Error: missing AI_EXTRACT_FACE_URL enviromental variable ');
-      return res.status(500).json({ error: 'Internal server error', success: false });
+    let responseData: FaceDetectionResponse;
+
+    try {
+      responseData = await getFaceEncoding(imageBuffer);
+    } catch (error: any) {
+      console.error('Error: while sending axios request', error.message || error);
+      return res
+        .status(500)
+        .json({ error: 'Internal server error from AI service', success: false });
     }
 
-    const form = new FormData();
-    form.append('image', req.file?.buffer, req.file?.originalname);
-
-    const response = await axios.post(process.env.AI_EXTRACT_FACE_URL, form, {
-      headers: {
-        ...form.getHeaders(), // This injects the proper 'multipart/form-data' boundaries
-      },
-    });
-
-    const responseData: FaceDetectionResponse = response.data;
-
     if (responseData.status === 'error') {
-      console.error('Error: Ai service');
+      console.error('Error: Ai service ');
       console.error(responseData);
       return res.status(500).json({ error: 'Internal server error', success: false });
     }
 
-    console.log(responseData?.faces_count);
     if (responseData?.faces_count !== 1)
       return res.status(400).json({
         error: 'the image must at least one and only one face',

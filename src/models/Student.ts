@@ -9,7 +9,10 @@ const studentSchema = new mongoose.Schema({
     type: String,
     unique: true,
   },
-  faceEncoding: [Number],
+  faceEncoding: {
+    type: [Number],
+    required: true,
+  },
   fullName: {
     required: true,
     type: String,
@@ -21,6 +24,7 @@ const studentSchema = new mongoose.Schema({
   studentNo: {
     required: true,
     type: String,
+    unique: true,
   },
 });
 

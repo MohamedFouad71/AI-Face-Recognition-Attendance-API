@@ -2,8 +2,16 @@ import mongoose from 'mongoose';
 
 const attendanceSchema = new mongoose.Schema(
   {
-    status: String,
-    studentId: { ref: 'Student', type: mongoose.Schema.Types.ObjectId },
+    status: {
+      enum: ['Present', 'Absent', 'Late'],
+      required: true,
+      type: String,
+    },
+    student: {
+      ref: 'Student',
+      required: true,
+      type: mongoose.Schema.Types.ObjectId,
+    },
   },
   { timestamps: true }
 );

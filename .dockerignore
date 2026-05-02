@@ -8,7 +8,7 @@ node_modules/
 .dockerignore
 .env.example
 .gitignore
-.nvmerc
+.nvmrc
 .prettierignore
 .prettierrc
 docker-compose.yaml
