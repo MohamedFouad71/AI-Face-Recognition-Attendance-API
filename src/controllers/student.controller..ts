@@ -83,7 +83,8 @@ export default class StudentController {
     if (studentNo) student.studentNo = studentNo;
     if (department) student.department = department;
 
-    await Student.updateOne({ _id: id }, { $set: student });
+    await student.save();
+
     return res.status(200).json({
       success: true,
       message: 'Student updated successfully',
@@ -100,9 +101,6 @@ export default class StudentController {
     if (!student) return res.status(404).json({ error: 'student not found', success: false });
 
     await student.deleteOne();
-    return res.status(201).json({
-      message: 'Student deleted successfully',
-      success: true,
-    });
+    return res.status(204).send();
   });
 }

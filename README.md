@@ -7,23 +7,26 @@
 - **Node.js v24** — Download from [nodejs.org](https://nodejs.org)
   - To check your version, run: `node -v`
   - If you use [nvm](https://github.com/nvm-sh/nvm), just run `nvm use` in this folder and it will pick up the correct version automatically.
-- **Docker & Docker Compose** — Required to run MongoDB, Redis, and the AI service.
+- **Docker & Docker Compose** — Required to run Redis and the AI service.
+- **MongoDB Atlas Account** — A free [MongoDB Atlas](https://www.mongodb.com/atlas) cluster is required because the app uses `$vectorSearch` (Atlas Vector Search), which is **not** available in self-hosted / Community MongoDB.
 
 ---
 
 ## Getting Started
 
 ```bash
-# 1) Start the databases and AI service
+# 1) Start Redis and the AI service
 docker compose up -d
 
 # 2) Install dependencies
 npm install
 
-# 3) Copy the env file (edit values if needed)
+# 3) Copy the env file
 cp .env.example .env
 
-# 4) Run the server in development mode
+# 4) Add your mongodb atlas url and your frontend url in the .env file using your favourite editor
+
+# 5) Run the server in development mode
 npm run dev
 ```
 
@@ -37,7 +40,9 @@ Once running, open [http://localhost:3000/api/v1/health](http://localhost:3000/a
 
 ## Docker Compose
 
-The `docker-compose.yaml` file spins up all the external services the API depends on. Run it **before** starting the Node.js server.
+The `docker-compose.yaml` file spins up Redis and the AI microservice. Run it **before** starting the Node.js server.
+
+> **Note:** MongoDB is **no longer** included in Docker Compose. The application requires [MongoDB Atlas](https://www.mongodb.com/atlas) because it relies on **Atlas Vector Search** (`$vectorSearch`) for face-recognition matching, a feature that is not available in the self-hosted Community edition of MongoDB.
 
 ```bash
 # Start all services in the background
@@ -58,31 +63,16 @@ docker compose down -v
 
 ### Services
 
-| Service     | Image                                     | Container Name          | Host Port | Description                                                                                                 |
-| ----------- | ----------------------------------------- | ----------------------- | --------- | ----------------------------------------------------------------------------------------------------------- |
-| **redis**   | `redis:7-alpine`                          | `face-recog-redis`      | `6379`    | In-memory cache used to store temporary upload tokens (face-encoding sessions). Data is persisted with AOF. |
-| **mongodb** | `mongo:7.0`                               | `face-recog-mongodb`    | `27018`   | Primary database for students and attendance records. Credentials are read from `.env` automatically.       |
-| **ai**      | `mohamedfouad71/ai_facenet_service:1.0.0` | `face-recog-ai-service` | `5000`    | Python-based AI microservice that extracts face embeddings from uploaded images using a FaceNet model.      |
-
-### Port Mapping
-
-> **Note:** MongoDB is mapped to host port **27018** (not the default 27017) to avoid conflicts with any local MongoDB installation.
-
-### Environment Variables
-
-Docker Compose automatically reads the `.env` file. The following variables are used by the **mongodb** service:
-
-| Variable              | Description           | Example                     |
-| --------------------- | --------------------- | --------------------------- |
-| `MONGO_ROOT_USER`     | MongoDB root username | `admin`                     |
-| `MONGO_ROOT_PASSWORD` | MongoDB root password | `super_secret_password_123` |
+| Service   | Image                                     | Container Name          | Host Port | Description                                                                                                 |
+| --------- | ----------------------------------------- | ----------------------- | --------- | ----------------------------------------------------------------------------------------------------------- |
+| **redis** | `redis:7-alpine`                          | `face-recog-redis`      | `6379`    | In-memory cache used to store temporary upload tokens (face-encoding sessions). Data is persisted with AOF. |
+| **ai**    | `mohamedfouad71/ai_facenet_service:1.0.0` | `face-recog-ai-service` | `5000`    | Python-based AI microservice that extracts face embeddings from uploaded images using a FaceNet model.      |
 
 ### Volumes
 
-| Volume Name    | Used By | Purpose                                 |
-| -------------- | ------- | --------------------------------------- |
-| `redis_data`   | Redis   | Persists cached data across restarts    |
-| `mongodb_data` | MongoDB | Persists database files across restarts |
+| Volume Name  | Used By | Purpose                              |
+| ------------ | ------- | ------------------------------------ |
+| `redis_data` | Redis   | Persists cached data across restarts |
 
 ---
 
@@ -242,6 +232,165 @@ curl -X POST http://localhost:3000/api/v1/students \
 
 ---
 
+#### Get All Students
+
+Retrieves a list of all registered students. Face-encoding data and `__v` are excluded from the response.
+
+|          |                        |
+| -------- | ---------------------- |
+| **URL**  | `GET /api/v1/students` |
+| **Auth** | None                   |
+
+**Response** `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Students fetched successfully",
+  "data": [
+    {
+      "_id": "664f1a2b3c4d5e6f7a8b9c0d",
+      "fullName": "John Doe",
+      "studentNo": "123456789",
+      "department": "Computer Science",
+      "email": "john.doe@example.com",
+      "phone": "123456789"
+    }
+  ]
+}
+```
+
+**Example (cURL)**
+
+```bash
+curl http://localhost:3000/api/v1/students
+```
+
+---
+
+#### Get Student by ID
+
+Retrieves a single student by their MongoDB `_id`.
+
+|          |                            |
+| -------- | -------------------------- |
+| **URL**  | `GET /api/v1/students/:id` |
+| **Auth** | None                       |
+
+**Response** `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Student fetched successfully",
+  "data": {
+    "_id": "664f1a2b3c4d5e6f7a8b9c0d",
+    "fullName": "John Doe",
+    "studentNo": "123456789",
+    "department": "Computer Science",
+    "email": "john.doe@example.com",
+    "phone": "123456789"
+  }
+}
+```
+
+**Error Responses**
+
+| Status | Condition         | Body                                                 |
+| ------ | ----------------- | ---------------------------------------------------- |
+| `400`  | Missing `id`      | `{ "success": false, "error": "id is required" }`    |
+| `404`  | Student not found | `{ "success": false, "error": "student not found" }` |
+
+**Example (cURL)**
+
+```bash
+curl http://localhost:3000/api/v1/students/664f1a2b3c4d5e6f7a8b9c0d
+```
+
+---
+
+#### Update Student
+
+Updates the fields of an existing student. Only the provided fields are modified.
+
+|                  |                              |
+| ---------------- | ---------------------------- |
+| **URL**          | `PATCH /api/v1/students/:id` |
+| **Auth**         | None                         |
+| **Content-Type** | `application/json`           |
+
+**Request Body** _(all fields optional)_
+
+| Field        | Type     | Description         |
+| ------------ | -------- | ------------------- |
+| `fullName`   | `string` | Student's full name |
+| `studentNo`  | `string` | Student number / ID |
+| `department` | `string` | Department name     |
+| `email`      | `string` | Student email       |
+| `phone`      | `string` | Phone number        |
+
+**Response** `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Student updated successfully",
+  "data": {
+    "_id": "664f1a2b3c4d5e6f7a8b9c0d",
+    "fullName": "Jane Doe",
+    "studentNo": "123456789",
+    "department": "Computer Science",
+    "email": "jane.doe@example.com",
+    "phone": "987654321"
+  }
+}
+```
+
+**Error Responses**
+
+| Status | Condition         | Body                                                 |
+| ------ | ----------------- | ---------------------------------------------------- |
+| `400`  | Missing `id`      | `{ "success": false, "error": "id is required" }`    |
+| `404`  | Student not found | `{ "success": false, "error": "student not found" }` |
+
+**Example (cURL)**
+
+```bash
+curl -X PUT http://localhost:3000/api/v1/students/664f1a2b3c4d5e6f7a8b9c0d \
+  -H "Content-Type: application/json" \
+  -d '{ "fullName": "Jane Doe", "email": "jane.doe@example.com" }'
+```
+
+---
+
+#### Delete Student
+
+Deletes a student by their MongoDB `_id`.
+
+|          |                               |
+| -------- | ----------------------------- |
+| **URL**  | `DELETE /api/v1/students/:id` |
+| **Auth** | None                          |
+
+**Response** `204 No Content`
+
+_(empty body)_
+
+**Error Responses**
+
+| Status | Condition         | Body                                                 |
+| ------ | ----------------- | ---------------------------------------------------- |
+| `400`  | Missing `id`      | `{ "success": false, "error": "id is required" }`    |
+| `404`  | Student not found | `{ "success": false, "error": "student not found" }` |
+
+**Example (cURL)**
+
+```bash
+curl -X DELETE http://localhost:3000/api/v1/students/664f1a2b3c4d5e6f7a8b9c0d
+```
+
+---
+
 ### Registration Flow
 
 The student registration is a **two-step process**:
@@ -254,6 +403,131 @@ The student registration is a **two-step process**:
                        │
                        ▼
 2. Create student ──►  POST /api/v1/students  (include upload_token)
+```
+
+---
+
+### Attendance
+
+#### Record Attendance (Face Recognition)
+
+Uploads a photo, extracts face embeddings via the AI service, and matches them against stored student face encodings using **Atlas Vector Search**. If a match is found, an attendance record is created for each recognized student.
+
+|                  |                            |
+| ---------------- | -------------------------- |
+| **URL**          | `POST /api/v1/attendances` |
+| **Auth**         | None                       |
+| **Content-Type** | `multipart/form-data`      |
+
+**Request Body**
+
+| Field           | Type   | Required | Description                                  |
+| --------------- | ------ | -------- | -------------------------------------------- |
+| `student_image` | `file` | ✅       | A photo containing one or more student faces |
+
+**Response** `200 OK` _(matches found)_
+
+```json
+{
+  "success": true,
+  "msg": "Succesfully registered 1 students",
+  "data": [
+    {
+      "_id": "664f1a2b3c4d5e6f7a8b9c0e",
+      "status": "Present",
+      "student": "664f1a2b3c4d5e6f7a8b9c0d",
+      "createdAt": "2026-05-02T19:00:00.000Z",
+      "updatedAt": "2026-05-02T19:00:00.000Z"
+    }
+  ]
+}
+```
+
+**Response** `200 OK` _(no match)_
+
+```json
+{
+  "success": true,
+  "msg": "No matching face found",
+  "data": []
+}
+```
+
+**Error Responses**
+
+| Status | Condition                                         | Body                                                     |
+| ------ | ------------------------------------------------- | -------------------------------------------------------- |
+| `400`  | No image provided                                 | `{ "success": false, "error": "image is not provided" }` |
+| `500`  | AI service error or `AI_EXTRACT_FACE_URL` not set | `{ "success": false, "error": "Internal server error" }` |
+
+**Example (cURL)**
+
+```bash
+curl -X POST http://localhost:3000/api/v1/attendances \
+  -F "student_image=@./classroom_photo.jpg"
+```
+
+---
+
+#### Get All Attendance Records
+
+Retrieves all attendance records, sorted by newest first. Each record is populated with the student's `studentNo` and `fullName`.
+
+|          |                           |
+| -------- | ------------------------- |
+| **URL**  | `GET /api/v1/attendances` |
+| **Auth** | None                      |
+
+**Response** `200 OK`
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "664f1a2b3c4d5e6f7a8b9c0e",
+      "status": "Present",
+      "createdAt": "2026-05-02T19:00:00.000Z",
+      "student": {
+        "studentNo": "123456789",
+        "fullName": "John Doe"
+      }
+    }
+  ]
+}
+```
+
+**Example (cURL)**
+
+```bash
+curl http://localhost:3000/api/v1/attendances
+```
+
+---
+
+#### Delete Attendance Record
+
+Deletes a single attendance record by its `_id`.
+
+|          |                                  |
+| -------- | -------------------------------- |
+| **URL**  | `DELETE /api/v1/attendances/:id` |
+| **Auth** | None                             |
+
+**Response** `204 No Content`
+
+_(empty body)_
+
+**Error Responses**
+
+| Status | Condition            | Body                                                    |
+| ------ | -------------------- | ------------------------------------------------------- |
+| `404`  | Attendance not found | `{ "success": false, "error": "Attendance not found" }` |
+
+**Example (cURL)**
+
+```bash
+curl -X DELETE http://localhost:3000/api/v1/attendances/664f1a2b3c4d5e6f7a8b9c0e
 ```
 
 ---
@@ -287,7 +561,7 @@ Api/
 │   ├── types/            # TypeScript type definitions
 │   ├── utils/            # Utility / helper functions
 │   └── __tests__/        # Test files (*.spec.ts)
-├── docker-compose.yaml   # Redis, MongoDB & AI service
+├── docker-compose.yaml   # Redis & AI service
 ├── Dockerfile            # Multi-stage production build
 ├── .env.example          # Template for env variables
 ├── package.json          # Dependencies & scripts
@@ -303,14 +577,13 @@ Api/
 
 Copy `.env.example` to `.env` and adjust the values as needed:
 
-| Variable              | Default                                                                                                  | Description                         |
-| --------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| `MONGO_ROOT_USER`     | `admin`                                                                                                  | MongoDB root username (for Docker)  |
-| `MONGO_ROOT_PASSWORD` | `super_secret_password_123`                                                                              | MongoDB root password (for Docker)  |
-| `PORT`                | `3000`                                                                                                   | Port the Express server listens on  |
-| `MONGO_URI`           | `mongodb://admin:super_secret_password_123@localhost:27018/attendence-face-recognition?authSource=admin` | MongoDB connection string           |
-| `REDIS_URI`           | `redis://localhost:6379`                                                                                 | Redis connection string             |
-| `AI_EXTRACT_FACE_URL` | `http://localhost:5000/api/v1/extract-faces`                                                             | AI face extraction service endpoint |
+| Variable              | Default / Example                            | Description                                                                                                                          |
+| --------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `PORT`                | `3000`                                       | Port the Express server listens on                                                                                                   |
+| `MONGO_URI`           | _(none — you must set this)_                 | MongoDB **Atlas** connection string. Get it from the Atlas dashboard → _Connect_ → _Drivers_. Atlas is required for `$vectorSearch`. |
+| `REDIS_URI`           | `redis://localhost:6379`                     | Redis connection string                                                                                                              |
+| `AI_EXTRACT_FACE_URL` | `http://localhost:5000/api/v1/extract-faces` | AI face extraction service endpoint                                                                                                  |
+| `FRONTEND_URL`        | _(your frontend origin)_                     | Frontend URL used for CORS or redirects                                                                                              |
 
 ---
 

@@ -16,6 +16,8 @@ const port = process.env.PORT ?? '3000';
 
 app.use(
   cors({
+    // the hardcoded frontend is added only to prevent the app from breaking in the pipeline
+    // and if the user forgot to add it to the .env
     origin: process.env.FRONTEND_URL || 'localhost://4000',
   })
 );
