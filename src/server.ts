@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 import connectDb from '#config/db.js';
 import redisClient from '#config/redis.js';
 
@@ -10,6 +12,11 @@ async function startServer() {
     await redisClient.connect();
     await connectDb();
     console.log('Databases connected successfully');
+
+    const aiHealth = await axios.get(
+      process.env.AI_HEALTH_CHECK || 'http://localhost:5000/api/v1/health'
+    );
+    if (aiHealth.status === 200) console.log('AI Connected');
 
     app.listen(port, (): void => {
       console.log(`App is running on http://localhost:${port}`);
