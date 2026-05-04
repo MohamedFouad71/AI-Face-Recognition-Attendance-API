@@ -88,8 +88,6 @@ class AttendanceController {
 
     // execute Query
     const attendances = await Attendance.find(queryObject)
-      .populate('student')
-      .select('status')
       .sort({ createdAt: -1 })
       .skip(offset)
       .limit(limit);
