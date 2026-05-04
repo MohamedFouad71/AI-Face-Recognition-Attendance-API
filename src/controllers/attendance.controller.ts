@@ -69,7 +69,13 @@ class AttendanceController {
       .populate({ path: 'student', select: 'studentNo fullName -_id' })
       .sort({ createdAt: -1 })
       .select('status createdAt');
-    res.status(200).json({ success: true, data: attendances });
+
+    if (!attendances)
+      res.status(200).json({ success: true, msg: 'No attendaces recorded yet', data: [] });
+
+    res
+      .status(200)
+      .json({ success: true, msg: 'Attendances fetched succesfully', data: attendances });
   });
 
   public deleteAttendance = expressAsyncHandler(async (req, res): Promise<any> => {

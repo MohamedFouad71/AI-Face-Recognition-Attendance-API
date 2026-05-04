@@ -45,7 +45,28 @@ export default class StudentController {
   });
 
   public getAll = expressAsyncHandler(async (req, res): Promise<any> => {
-    const students = await Student.find().select('-faceEncoding -__v');
+    // Get query
+    let queryObject = { ...req.query };
+    const exclude: string[] = ['sort', 'page', 'limit'];
+    exclude.forEach((el) => delete queryObject[el]);
+
+    const queryStr = JSON.stringify(queryObject).replace(
+      /\b(gt|gte|lt|lte)\b/g,
+      (match) => `$${match}`
+    );
+    queryObject = JSON.parse(queryStr);
+
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    // Excute Query
+    const students = await Student.find(queryObject)
+      .sort({ createdAt: -1 })
+      .skip(offset)
+      .limit(limit)
+      .select('-faceEncoding -__v');
+    // Return Response
     return res.status(200).json({
       data: students,
       message: 'Students fetched successfully',
