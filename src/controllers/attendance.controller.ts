@@ -51,24 +51,48 @@ class AttendanceController {
     if (!results.length)
       return res.status(200).json({ msg: 'No matching face found', success: true, data: [] });
 
-    const attendances = [];
-    for (let i = 0; i < results.length; i++) {
-      const attendance = await Attendance.create({ status: 'Present', student: results[i]._id });
-      attendances.push(attendance);
-    }
+    const attendancePayloads = results.map((result) => ({
+      status: 'Present',
+      student: result._id,
+    }));
+
+    const attendances = await Attendance.insertMany(attendancePayloads);
+
+    const populatedAttendances = await Attendance.populate(attendances, {
+      path: 'student',
+      select: 'fullName studentNo email',
+    });
 
     res.status(200).json({
       success: true,
-      msg: `Succesfully registered ${attendances.length} students`,
-      data: attendances,
+      msg: `Successfully registered ${populatedAttendances.length} students`,
+      data: populatedAttendances,
     });
   });
 
   public getAll = expressAsyncHandler(async (req, res) => {
-    const attendances = await Attendance.find()
-      .populate({ path: 'student', select: 'studentNo fullName -_id' })
+    // Get query
+    let queryObject = { ...req.query };
+    const exclude: string[] = ['sort', 'page', 'limit'];
+    exclude.forEach((el) => delete queryObject[el]);
+
+    const queryStr = JSON.stringify(queryObject).replace(
+      /\b(gt|gte|lt|lte)\b/g,
+      (match) => `$${match}`
+    );
+    queryObject = JSON.parse(queryStr);
+
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    // execute Query
+    const attendances = await Attendance.find(queryObject)
+      .populate('student')
+      .select('status')
       .sort({ createdAt: -1 })
-      .select('status createdAt');
+      .skip(offset)
+      .limit(limit);
 
     if (!attendances)
       res.status(200).json({ success: true, msg: 'No attendaces recorded yet', data: [] });
