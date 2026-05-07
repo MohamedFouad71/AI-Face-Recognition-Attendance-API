@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: face-recog-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: [ "redis-server", "--appendonly", "yes" ]
+    restart: unless-stopped
+
+  # mongodb:
+  #   image: mongo:7.0
+  #   container_name: face-recog-mongodb
+  #   ports:
+  #     - '27018:27017'
+  #   environment:
+  #     # docker will pull those automatically from .env, it is a native feature, no third party tools required
+  #     MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+  #     MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+  #   volumes:
+  #     - mongodb_data:/data/db
+  #   restart: unless-stopped
+
+  ai:
+    image: mohamedfouad71/ai_facenet_service:1.0.0
+    container_name: face-recog-ai-service
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  mongodb_data:
