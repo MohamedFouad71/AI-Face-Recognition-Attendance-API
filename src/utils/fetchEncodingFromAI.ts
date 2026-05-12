@@ -1,6 +1,6 @@
 import axios from 'axios';
 import FormData from 'form-data';
-import OperationalError from './operationalError';
+import OperationalError from './operationalError.js';
 import { FaceDetectionSuccess } from '#types/api.js';
 
 const fetchEncodingFromAI = async (imageBuffer: Buffer) => {

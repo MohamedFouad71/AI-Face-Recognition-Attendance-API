@@ -8,8 +8,8 @@ process.on('uncaughtException', (err) => {
 });
 
 const port = process.env.PORT ?? '3000';
-const domain = process.env.DOMAIN ?? '127.0.0.1';
-const server = await startServer(app, domain, port);
+const host = process.env.HOST ?? '127.0.0.1';
+const server = await startServer(app, host, port);
 
 process.on('unhandledRejection', (err: Error) => {
   console.error('Unhandled Rejection !!\nShutting Down The Server');
