@@ -4,7 +4,7 @@ import request from 'supertest';
 
 import app from '../../app.js';
 import redisClient from '#config/redis.js';
-import getFaceEncoding from '#utils/getFaceEncodong.js';
+import getFaceEncoding from '#utils/fetchEncodingFromAI.js';
 
 // ── Mock external dependencies ──────────────────────────────────────────────
 vi.mock('#config/redis.js', () => ({

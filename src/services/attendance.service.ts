@@ -1,35 +1,14 @@
 import Student from '#models/Student.js';
-import getFaceEncoding from '#utils/getFaceEncodong.js';
-import FaceDetectionResponse from '#types/api.js';
+import Attendance from '#models/Attendance.js';
+import { FaceDetectionSuccess } from '#types/api.js';
+import VectordbResultType from '#types/vectorDBResults.js';
+import { ObjectId } from 'mongoose';
+import OperationalError from '#utils/operationalError.js';
 
 class AttendanceService {
-  // public getByFaceEncoding = async (faceEncodings: number[][]) => {
-  //   let results = [];
-  //   for (let index = 0; index < faceEncodings.length; index++) {
-  //     const currentResult = await Student.aggregate([
-  //       {
-  //         $vectorSearch: {
-  //           index: 'vector_index', // Must match the name you gave it in Atlas
-  //           path: 'faceEncoding',
-  //           queryVector: faceEncodings[index],
-  //           numCandidates: 100,
-  //           limit: 1,
-  //         },
-  //       },
-  //       {
-  //         $project: {
-  //           fullName: 1,
-  //           email: 1,
-  //           score: { $meta: 'vectorSearchScore' }, // Get the similarity score
-  //         },
-  //       },
-  //     ]);
-  //     results.push(currentResult[0]);
-  //   }
-  //   return results;
-  // };
+  public getByFaceEncoding = async (responseData: FaceDetectionSuccess) => {
+    const faceEncodings: number[][] = responseData.data.map((data) => data.embedding);
 
-  public getByFaceEncoding = async (faceEncodings: number[][]) => {
     const promises = faceEncodings.map((encodingVec) =>
       Student.aggregate([
         {
@@ -55,74 +34,43 @@ class AttendanceService {
     );
 
     const results = await Promise.all(promises);
-    return results.map((r) => r[0]);
+    console.log(results);
+    return results.map((r) => r[0]).filter((match) => match !== undefined && match.score >= 0.85);
   };
 
-  public getEncodingFromAI = async (imageBuffer: Buffer) => {
-    let responseData: FaceDetectionResponse;
+  public registerAttendaces = async (studentsToRegister: VectordbResultType[]) => {
+    const isRegistered = new Set<string>();
 
-    try {
-      responseData = await getFaceEncoding(imageBuffer);
-    } catch (error: any) {
-      console.error('Error: while sending axios request', error.message || error);
-      throw new Error('Internal server error from AI service');
-    }
+    const uniqueStudents = studentsToRegister.filter((st) => {
+      // @ts-ignore
+      const stringId = st._id.toString();
 
-    if (responseData.status === 'error') {
-      console.error('Error: AI service returned error');
-      throw new Error(responseData.message);
+      if (isRegistered.has(stringId)) return false;
+
+      isRegistered.add(stringId);
+      return true;
+    });
+
+    const attendancePayloads = uniqueStudents.map((st) => ({
+      status: 'Present',
+      student: st._id,
+    }));
+
+    const attendances = await Attendance.insertMany(attendancePayloads);
+    const populatedAttendances = await Attendance.populate(attendances, {
+      path: 'student',
+      select: 'fullName studentNo email',
+    });
+
+    return populatedAttendances;
+  };
+
+  public deleteById = async (id: any) => {
+    const attendance = await Attendance.findOneAndDelete({ _id: id });
+    if (!attendance) {
+      throw new OperationalError('No Registered Attendance With Such ID', 404);
     }
-    return responseData;
   };
 }
 
 export default AttendanceService;
-
-// public getByFaceEncoding = async (faceEncodings: number[][]) => {
-//   // Use Promise.all to run vector searches concurrently for massive speed gains
-//   const results = await Promise.all(
-//     faceEncodings.map(async (encoding) => {
-//       const currentResult = await Student.aggregate([
-//         {
-//           $vectorSearch: {
-//             index: 'vector_index',
-//             path: 'faceEncoding',
-//             queryVector: encoding,
-//             numCandidates: 100,
-//             limit: 1,
-//           },
-//         },
-//         // 1. "Populate" the referenced data
-//         {
-//           $lookup: {
-//             from: 'Student', // MUST be the exact collection name in your MongoDB database (usually plural/lowercase)
-//             localField: 'student', // The field in your Student schema that points to the user
-//             foreignField: '_id', // The field in the target collection (usually _id)
-//             as: 'studentDetails', // The temporary array name to store the joined data
-//           },
-//         },
-//         // 2. Flatten the array created by $lookup into a single object
-//         {
-//           $unwind: {
-//             path: '$studentDetails',
-//             preserveNullAndEmptyArrays: true, // Prevents the whole record from dropping if the user isn't found
-//           },
-//         },
-//         // 3. Project the fields you actually want to return
-//         {
-//           $project: {
-//             _id: 1,
-//             fullName: '$studentDetails.fullName', // Grab fields from the unwound object
-//             email: '$studentDetails.email',
-//             score: { $meta: 'vectorSearchScore' },
-//           },
-//         },
-//       ]);
-
-//       return currentResult[0];
-//     })
-//   );
-
-//   // Filter out undefined values in case any vector search returned 0 matches
-//   return results.filter(Boolean);
-// };

@@ -1,30 +1,20 @@
-import axios from 'axios';
-
-import connectDb from '#config/db.js';
-import redisClient from '#config/redis.js';
-
 import app from './app.js';
+import startServer from '#utils/startServer.js';
+
+process.on('uncaughtException', (err) => {
+  console.log('Uncaught exceptions !!\nShutting down the application...');
+  console.log(err.name, err.message);
+  process.exit(1);
+});
 
 const port = process.env.PORT ?? '3000';
+const domain = process.env.DOMAIN ?? '127.0.0.1';
+const server = await startServer(app, domain, port);
 
-async function startServer() {
-  try {
-    await redisClient.connect();
-    await connectDb();
-    console.log('Databases connected successfully');
-
-    const aiHealth = await axios.get(
-      process.env.AI_HEALTH_CHECK || 'http://localhost:5000/api/v1/health'
-    );
-    if (aiHealth.status === 200) console.log('AI Connected');
-
-    app.listen(port, (): void => {
-      console.log(`App is running on http://localhost:${port}`);
-    });
-  } catch (error) {
-    console.error('Failed to connect to databases. Shutting down.', error);
+process.on('unhandledRejection', (err: Error) => {
+  console.error('Unhandled Rejection !!\nShutting Down The Server');
+  console.error(err.name, err.message);
+  server.close(() => {
     process.exit(1);
-  }
-}
-
-await startServer();
+  });
+});
