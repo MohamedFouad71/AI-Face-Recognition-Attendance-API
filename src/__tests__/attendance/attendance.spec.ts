@@ -5,6 +5,7 @@ import request from 'supertest';
 import app from '../../app.js';
 import Attendance from '#models/Attendance.js';
 import AttendanceService from '#services/attendance.service.js';
+import fetchEncodingFromAI from '#utils/fetchEncodingFromAI.js';
 
 // ── Mock external dependencies ──────────────────────────────────────────────
 vi.mock('#models/Attendance.js', () => {
@@ -64,12 +65,12 @@ describe('POST /api/v1/attendances', () => {
 
   it('should return 200 with empty data when no matching face is found', async () => {
     const service = AttendanceService.prototype;
-    (service.getEncodingFromAI as Mock).mockResolvedValue({
+    (fetchEncodingFromAI as Mock).mockResolvedValue({
       status: 'success',
       faces_count: 1,
       data: [{ embedding: [0.1, 0.2], face_index: 0, confidence: 0.99, bounding_box: {} }],
     });
-    (service.getByFaceEncoding as Mock).mockResolvedValue([]);
+    (fetchEncodingFromAI as Mock).mockResolvedValue([]);
 
     const res = await request(app)
       .post(BASE)
@@ -82,13 +83,18 @@ describe('POST /api/v1/attendances', () => {
 
   it('should return 200 with attendance records when faces are matched', async () => {
     const service = AttendanceService.prototype;
-    (service.getEncodingFromAI as Mock).mockResolvedValue({
+    (fetchEncodingFromAI as Mock).mockResolvedValue({
       status: 'success',
       faces_count: 1,
       data: [{ embedding: [0.1, 0.2], face_index: 0, confidence: 0.99, bounding_box: {} }],
     });
-    (service.getByFaceEncoding as Mock).mockResolvedValue([
-      { _id: '507f1f77bcf86cd799439011', fullName: 'John Doe', email: 'john@test.com', score: 0.98 },
+    (fetchEncodingFromAI as Mock).mockResolvedValue([
+      {
+        _id: '507f1f77bcf86cd799439011',
+        fullName: 'John Doe',
+        email: 'john@test.com',
+        score: 0.98,
+      },
     ]);
     (Attendance.create as Mock).mockResolvedValue(fakeAttendanceDoc);
 
@@ -104,7 +110,7 @@ describe('POST /api/v1/attendances', () => {
 
   it('should return 500 when AI service throws an error', async () => {
     const service = AttendanceService.prototype;
-    (service.getEncodingFromAI as Mock).mockRejectedValue(new Error('AI service down'));
+    (fetchEncodingFromAI as Mock).mockRejectedValue(new Error('AI service down'));
 
     const res = await request(app)
       .post(BASE)

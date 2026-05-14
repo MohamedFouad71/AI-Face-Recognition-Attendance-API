@@ -4,8 +4,7 @@ import request from 'supertest';
 
 import app from '../../app.js';
 import redisClient from '#config/redis.js';
-import getFaceEncoding from '#utils/getFaceEncodong.js';
-
+import fetchEncodingFromAI from '#utils/fetchEncodingFromAI.js';
 // ── Mock external dependencies ──────────────────────────────────────────────
 vi.mock('#config/redis.js', () => ({
   default: {
@@ -35,7 +34,7 @@ vi.mock('#models/Attendance.js', () => ({
   },
 }));
 
-vi.mock('#utils/getFaceEncodong.js', () => ({
+vi.mock('#utils/fetchEncodingFromAI.js', () => ({
   default: vi.fn(),
 }));
 
@@ -69,7 +68,7 @@ describe('POST /api/v1/images/upload', () => {
   });
 
   it('should return 200 with upload_token on success', async () => {
-    (getFaceEncoding as Mock).mockResolvedValue(fakeSuccessResponse);
+    (fetchEncodingFromAI as Mock).mockResolvedValue(fakeSuccessResponse);
     (redisClient.setEx as Mock).mockResolvedValue('OK');
 
     const res = await request(app)
@@ -90,7 +89,7 @@ describe('POST /api/v1/images/upload', () => {
   });
 
   it('should return 500 when AI service throws an error', async () => {
-    (getFaceEncoding as Mock).mockRejectedValue(new Error('Connection refused'));
+    (fetchEncodingFromAI as Mock).mockRejectedValue(new Error('Connection refused'));
 
     const res = await request(app)
       .post(`${BASE}/upload`)
@@ -101,7 +100,7 @@ describe('POST /api/v1/images/upload', () => {
   });
 
   it('should return 500 when AI service returns an error status', async () => {
-    (getFaceEncoding as Mock).mockResolvedValue({
+    (fetchEncodingFromAI as Mock).mockResolvedValue({
       status: 'error',
       message: 'Processing failed',
       processing_time_ms: 50,
@@ -116,7 +115,7 @@ describe('POST /api/v1/images/upload', () => {
   });
 
   it('should return 400 when image contains zero or multiple faces', async () => {
-    (getFaceEncoding as Mock).mockResolvedValue({
+    (fetchEncodingFromAI as Mock).mockResolvedValue({
       ...fakeSuccessResponse,
       faces_count: 2,
       data: [
@@ -135,7 +134,7 @@ describe('POST /api/v1/images/upload', () => {
   });
 
   it('should return 400 when no faces are detected', async () => {
-    (getFaceEncoding as Mock).mockResolvedValue({
+    (fetchEncodingFromAI as Mock).mockResolvedValue({
       ...fakeSuccessResponse,
       faces_count: 0,
       data: [],

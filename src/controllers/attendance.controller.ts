@@ -1,14 +1,10 @@
 import expressAsyncHandler from 'express-async-handler';
 
 import Attendance from '#models/Attendance.js';
-import Student from '#models/Student.js';
 import FaceDetectionResponse from '#types/api.js';
-import getFaceEncoding from '#utils/getFaceEncodong.js';
 import AttendanceService from '#services/attendance.service.js';
-import { ObjectId } from 'mongodb';
-
-const attendenceService = new AttendanceService();
-
+import fetchEncodingFromAI from '#utils/fetchEncodingFromAI.js';
+import VectordbResultType from '#types/vectorDBResults.js';
 // faceEncodings -> vectordb
 // [
 //   [
@@ -21,58 +17,32 @@ const attendenceService = new AttendanceService();
 //   ]
 // ]
 
-interface VectordbResultType {
-  _id: ObjectId;
-  email: string;
-  fullName: string;
-  score: number;
-}
-
 class AttendanceController {
+  private attendenceService = new AttendanceService();
   public create = expressAsyncHandler(async (req, res): Promise<any> => {
     const imageBuffer = req.file?.buffer;
-
-    if (!imageBuffer)
-      return res.status(400).json({ error: 'image is not provided', success: false });
-
-    let responseData: FaceDetectionResponse;
-    try {
-      responseData = await attendenceService.getEncodingFromAI(imageBuffer);
-    } catch (error: any) {
-      console.error(error.message);
-      return res.status(500).json({ error: 'Internal server error', success: false });
-    }
-
-    const faceEncodings = responseData.data.map((data) => data.embedding);
+    // @ts-ignore
+    let responseData: FaceDetectionResponse = await fetchEncodingFromAI(imageBuffer);
     // array of objects [results]
-    const results: VectordbResultType[] = await attendenceService.getByFaceEncoding(faceEncodings);
-    console.log(results);
+    const studentsMatched: VectordbResultType[] =
+      await this.attendenceService.getByFaceEncoding(responseData);
 
-    if (!results.length)
+    if (!studentsMatched.length)
       return res.status(200).json({ msg: 'No matching face found', success: true, data: [] });
 
-    const attendancePayloads = results.map((result) => ({
-      status: 'Present',
-      student: result._id,
-    }));
-
-    const attendances = await Attendance.insertMany(attendancePayloads);
-
-    const populatedAttendances = await Attendance.populate(attendances, {
-      path: 'student',
-      select: 'fullName studentNo email',
-    });
+    const attendaces = await this.attendenceService.registerAttendaces(studentsMatched);
 
     res.status(200).json({
       success: true,
-      msg: `Successfully registered ${populatedAttendances.length} students`,
-      data: populatedAttendances,
+      msg: `Successfully registered ${attendaces.length} students`,
+      data: attendaces,
     });
   });
 
   public getAll = expressAsyncHandler(async (req, res) => {
     // Get query
     let queryObject = { ...req.query };
+    // const query = Attendance.find();
     const exclude: string[] = ['sort', 'page', 'limit'];
     exclude.forEach((el) => delete queryObject[el]);
 
@@ -92,7 +62,7 @@ class AttendanceController {
       .skip(offset)
       .limit(limit);
 
-    if (!attendances)
+    if (!attendances.length)
       res.status(200).json({ success: true, msg: 'No attendaces recorded yet', data: [] });
 
     res
@@ -101,9 +71,7 @@ class AttendanceController {
   });
 
   public deleteAttendance = expressAsyncHandler(async (req, res): Promise<any> => {
-    const attendance = await Attendance.findById(req.params.id);
-    if (!attendance) return res.status(404).json({ error: 'Attendance not found', success: false });
-    await Attendance.deleteOne(attendance);
+    await this.attendenceService.deleteById(req.params.id);
     return res.status(204).send();
   });
 }
