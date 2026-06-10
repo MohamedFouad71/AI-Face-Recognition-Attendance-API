@@ -34,7 +34,6 @@ class AttendanceService {
     );
 
     const results = await Promise.all(promises);
-    console.log(results);
     return results.map((r) => r[0]).filter((match) => match !== undefined && match.score >= 0.85);
   };
 

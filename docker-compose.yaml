@@ -8,14 +8,14 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: [ "redis-server", "--appendonly", "yes" ]
+    command: ["redis-server", "--appendonly", "yes"]
     restart: unless-stopped
 
   # mongodb:
   #   image: mongo:7.0
   #   container_name: face-recog-mongodb
   #   ports:
-  #     - '27018:27017'
+  #     - "27018:27017"
   #   environment:
   #     # docker will pull those automatically from .env, it is a native feature, no third party tools required
   #     MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}

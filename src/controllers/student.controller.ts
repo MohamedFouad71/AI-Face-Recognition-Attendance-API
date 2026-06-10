@@ -1,4 +1,4 @@
-import expressAsyncHandler from 'express-async-handler';
+import asyncHandler from 'express-async-handler';
 
 import redisClient from '#config/redis.js';
 import Student from '#models/Student.js';
@@ -6,7 +6,7 @@ import OperationalError from '#utils/operationalError.js';
 
 // @TODO: email validation, send email to the student.
 export default class StudentController {
-  public create = expressAsyncHandler(async (req, res): Promise<any> => {
+  public create = asyncHandler(async (req, res): Promise<any> => {
     const { department, email, fullName, phone, studentNo, upload_token } = req.body;
 
     if (!upload_token) throw new OperationalError('upload_token is required', 400);
@@ -41,7 +41,7 @@ export default class StudentController {
     });
   });
 
-  public getAll = expressAsyncHandler(async (req, res): Promise<any> => {
+  public getAll = asyncHandler(async (req, res): Promise<any> => {
     // Get query
     let queryObject = { ...req.query };
     const exclude: string[] = ['sort', 'page', 'limit'];
@@ -71,7 +71,7 @@ export default class StudentController {
     });
   });
 
-  public getById = expressAsyncHandler(async (req, res): Promise<any> => {
+  public getById = asyncHandler(async (req, res): Promise<any> => {
     const { id } = req.params;
 
     if (!id) throw new OperationalError('ID is Required', 404);
@@ -86,7 +86,7 @@ export default class StudentController {
     });
   });
 
-  public update = expressAsyncHandler(async (req, res): Promise<any> => {
+  public update = asyncHandler(async (req, res): Promise<any> => {
     const { id } = req.params;
     if (!id) throw new OperationalError('Student Not Found', 404);
 
@@ -110,7 +110,7 @@ export default class StudentController {
     });
   });
 
-  public delete = expressAsyncHandler(async (req, res): Promise<any> => {
+  public delete = asyncHandler(async (req, res): Promise<any> => {
     const { id } = req.params;
     if (!id) throw new OperationalError('Student Not Found', 404);
 

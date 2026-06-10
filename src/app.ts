@@ -8,8 +8,10 @@ import sanitizer from '#middlewares/sanitizer.js';
 import imageRoutes from '#routes/image.route.js';
 import studentRoutes from '#routes/student.route.js';
 import attendanceRoutes from '#routes/attendance.routes.js';
+import userRoutes from '#routes/user.routes.js';
 import errorHandler from '#controllers/error.controller.js';
 import OperationalError from '#utils/operationalError.js';
+import doesBodyExists from '#middlewares/checkBodyExistance.js';
 
 const app = express();
 
@@ -28,10 +30,11 @@ app.use(sanitizer);
 const logFormat = process.env.NODE_ENV === 'production' ? 'combined' : 'dev';
 app.use(morgan(logFormat));
 
+app.use(doesBodyExists);
 app.use('/api/v1/images', imageRoutes);
 app.use('/api/v1/students', studentRoutes);
 app.use('/api/v1/attendances', attendanceRoutes);
-
+app.use('/api/v1/user', userRoutes);
 app.get('/api/v1/health', (req: Request, res: Response): void => {
   res.status(200).json({ success: 'ok' });
 });

@@ -1,4 +1,4 @@
-import expressAsyncHandler from 'express-async-handler';
+import asyncHandler from 'express-async-handler';
 
 import Attendance from '#models/Attendance.js';
 import FaceDetectionResponse from '#types/api.js';
@@ -19,7 +19,7 @@ import VectordbResultType from '#types/vectorDBResults.js';
 
 class AttendanceController {
   private attendenceService = new AttendanceService();
-  public create = expressAsyncHandler(async (req, res): Promise<any> => {
+  public create = asyncHandler(async (req, res): Promise<any> => {
     const imageBuffer = req.file?.buffer;
     // @ts-ignore
     let responseData: FaceDetectionResponse = await fetchEncodingFromAI(imageBuffer);
@@ -39,7 +39,7 @@ class AttendanceController {
     });
   });
 
-  public getAll = expressAsyncHandler(async (req, res) => {
+  public getAll = asyncHandler(async (req, res) => {
     // Get query
     let queryObject = { ...req.query };
     // const query = Attendance.find();
@@ -70,7 +70,7 @@ class AttendanceController {
       .json({ success: true, msg: 'Attendances fetched succesfully', data: attendances });
   });
 
-  public deleteAttendance = expressAsyncHandler(async (req, res): Promise<any> => {
+  public deleteAttendance = asyncHandler(async (req, res): Promise<any> => {
     await this.attendenceService.deleteById(req.params.id);
     return res.status(204).send();
   });
